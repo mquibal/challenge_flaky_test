@@ -1,81 +1,34 @@
-/* eslint no-underscore-dangle: [2, { "allow": ["_loading", "_saveStatus"] }] */
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import Field from './08-field-component-field'
 import isEmail from 'validator/lib/isEmail';
 
 const apiClient = require('./api/client')
-const Field = require('./08-field-component-field.js');
 const CourseSelect = require('./09-course-select.js');
 
-const content = document.createElement('div');
-document.body.appendChild(content);
+const INITIAL = {
+  fields: {
+    name: '',
+    email: '',
+    course: null,
+    department: null
+  },
+  fieldErrors: {},
+  people: [],
+  _loading: true,
+  _saveStatus: 'READY'
+}
+const RemotePersist = () => {
+  const [ state, setState ] = useState(INITIAL)
 
-module.exports = class extends React.Component {
-  static displayName = '10-remote-persist';
-
-  state = {
-    fields: {
-      name: '',
-      email: '',
-      course: null,
-      department: null
-    },
-    fieldErrors: {},
-    people: [],
-    _loading: false,
-    _saveStatus: 'READY'
-  };
-
-  componentDidMount() {
-    this.setState({_loading: true});
+  useEffect(() => {
     apiClient.loadPeople().then(people => {
-      this.setState({_loading: false, people: people});
+      setState({...state, _loading: false, people });
     });
-  }
+  }, [])
 
-  onFormSubmit = evt => {
-    const person = this.state.fields;
-
-    evt.preventDefault();
-
-    if (this.validate()) return;
-
-    const people = [...this.state.people, person];
-
-    this.setState({_saveStatus: 'SAVING'});
-    apiClient
-      .savePeople(people)
-      .then(() => {
-        this.setState({
-          people: people,
-          fields: {
-            name: '',
-            email: '',
-            course: null,
-            department: null
-          },
-          _saveStatus: 'SUCCESS'
-        });
-      })
-      .catch(err => {
-        console.error(err);
-        this.setState({_saveStatus: 'ERROR'});
-      });
-  };
-
-  onInputChange = ({name, value, error}) => {
-    const fields = this.state.fields;
-    const fieldErrors = this.state.fieldErrors;
-
-    fields[name] = value;
-    fieldErrors[name] = error;
-
-    this.setState({fields, fieldErrors, _saveStatus: 'READY'});
-  };
-
-  validate = () => {
-    const person = this.state.fields;
-    const fieldErrors = this.state.fieldErrors;
+  const validate = () => {
+    const person = state.fields;
+    const fieldErrors = state.fieldErrors;
     const errMessages = Object.keys(fieldErrors).filter(k => fieldErrors[k]);
 
     if (!person.name) return true;
@@ -87,21 +40,48 @@ module.exports = class extends React.Component {
     return false;
   };
 
-  render() {
-    if (this.state._loading) {
-      return <img alt="loading" src="/img/loading.gif" />;
-    }
+  const onFormSubmit = async(evt) => {
+    const person = state.fields;
 
-    return (
-      <div>
+    evt.preventDefault();
+
+    if (validate()) return;
+
+    const people = [...state.people, person];
+    setState({...state, _saveStatus: 'SAVING'});
+    apiClient
+      .savePeople(people)
+      .then(() => {
+        setState({ ...INITIAL, people, _saveStatus: 'SUCCESS' });
+        setTimeout(() => {
+          window.location.reload(1);
+       }, 1000);
+      })
+      .catch(err => {
+        console.error(err);
+        setState({...state, _saveStatus: 'ERROR'});
+      });
+  };
+
+  const onInputChange = ({name, value, error}) => {
+    const fields = state.fields;
+    const fieldErrors = state.fieldErrors;
+
+    fields[name] = value;
+    fieldErrors[name] = error;
+    setState({...state, fields, fieldErrors, _saveStatus: 'READY'});
+  };
+
+  return (
+    <div>
         <h1>Sign Up Sheet</h1>
 
-        <form onSubmit={this.onFormSubmit}>
+        <form onSubmit={onFormSubmit}>
           <Field
             placeholder="Name"
             name="name"
-            value={this.state.fields.name}
-            onChange={this.onInputChange}
+            value={state.fields.name}
+            onChange={onInputChange}
             validate={val => (val ? false : 'Name Required')}
           />
 
@@ -110,17 +90,17 @@ module.exports = class extends React.Component {
           <Field
             placeholder="Email"
             name="email"
-            value={this.state.fields.email}
-            onChange={this.onInputChange}
+            value={state.fields.email}
+            onChange={onInputChange}
             validate={val => (isEmail(val) ? false : 'Invalid Email')}
           />
 
           <br />
 
           <CourseSelect
-            department={this.state.fields.department}
-            course={this.state.fields.course}
-            onChange={this.onInputChange}
+            department={state.fields.department}
+            course={state.fields.course}
+            onChange={onInputChange}
           />
 
           <br />
@@ -133,29 +113,30 @@ module.exports = class extends React.Component {
                 <input
                   value="Save Failed - Retry?"
                   type="submit"
-                  disabled={this.validate()}
+                  disabled={validate()}
                 />
               ),
               READY: (
                 <input
                   value="Submit"
                   type="submit"
-                  disabled={this.validate()}
+                  disabled={validate()}
                 />
               )
-            }[this.state._saveStatus]
+            }[state._saveStatus]
           }
         </form>
 
         <div>
           <h3>People</h3>
           <ul>
-            {this.state.people.map(({name, email, department, course}, i) => (
+            {state.people.map(({name, email, department, course}, i) => (
               <li key={i}>{[name, email, department, course].join(' - ')}</li>
             ))}
           </ul>
         </div>
-      </div>
-    );
-  }
-};
+    </div>
+  )
+}
+
+export default RemotePersist

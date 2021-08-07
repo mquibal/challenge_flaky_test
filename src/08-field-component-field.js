@@ -1,45 +1,44 @@
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import React from 'react';
 
-module.exports = class extends React.Component {
-  static propTypes = {
+const Field = (props) => {
+  Field.propTypes = {
     placeholder: PropTypes.string,
     name: PropTypes.string.isRequired,
     value: PropTypes.string,
     validate: PropTypes.func,
     onChange: PropTypes.func.isRequired
   };
-
-  state = {
-    value: this.props.value,
+  
+  const [ state, setState ] = useState({
+    value:  props.value,
     error: false
-  };
+  })
 
-  getDerivedStateFromProps(nextProps) {
-    return {value: nextProps.value}
-  }
-
-  onChange = evt => {
-    const name = this.props.name;
+  const onChange = evt => {
+    const { name, validate } = props;
     const value = evt.target.value;
-    const error = this.props.validate ? this.props.validate(value) : false;
+    const error = validate ? props.validate(value) : false;
 
-    this.setState({value, error});
-
-    this.props.onChange({name, value, error});
+    setState({value, error});
+    props.onChange({name, value, error});
   };
 
-  render() {
-    return (
-      <div>
-        <input
-          name={this.props.name}
-          placeholder={this.props.placeholder}
-          value={this.state.value}
-          onChange={this.onChange}
-        />
-        <span style={{color: 'red'}}>{this.state.error}</span>
-      </div>
-    );
-  }
-};
+
+  return (
+    <div>
+      <input
+        name={props.name}
+        placeholder={props.placeholder}
+        value={state.value}
+        onChange={onChange}
+      />
+      <span style={{color: 'red'}}>{state.error}</span>
+    </div>
+  );
+}
+
+export default Field
+
+
+
